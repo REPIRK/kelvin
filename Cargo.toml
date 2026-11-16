@@ -1,6 +1,6 @@
 [package]
 name = "kelvin"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2024"
 description = "Fans, power modes and lighting for Acer Predator laptops: a PredatorSense replacement"
 repository = "https://github.com/REPIRK/kelvin"
