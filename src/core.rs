@@ -145,9 +145,12 @@ impl Core {
     /// Reads what the machine has and what the firmware currently holds.
     fn probe(&mut self) {
         let acer = self.acer.available();
-        // A dark screen left behind by a crash or kill: bring the brightness back.
+        // A dark screen left behind by a crash or kill: bring the brightness and the taskbar back.
         if let Some(b) = crate::dark::take_saved_brightness() {
             self.acer.set_brightness(b);
+        }
+        if crate::dark::taskbar_left_hidden() {
+            crate::dark::taskbars(true);
         }
         let boot = if acer {
             self.acer.get_boot_effect()
@@ -686,6 +689,7 @@ impl Core {
                     self.acer.set_brightness(0);
                 }
                 crate::dark::show_overlay();
+                crate::dark::taskbars(false);
                 sys::keep_awake(true);
                 self.screen_off_input = Some(sys::last_input_tick());
                 state::shared().tele.screen_off = true;
@@ -698,6 +702,7 @@ impl Core {
 
     fn end_dark(&mut self) {
         crate::dark::hide_overlay();
+        crate::dark::taskbars(true);
         if let Some(b) = crate::dark::take_saved_brightness() {
             self.acer.set_brightness(b);
         }

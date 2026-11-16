@@ -34,7 +34,7 @@ pub fn reports(l: &Lighting, m: &Moment) -> [Vec<Report>; 3] {
     let speed = l.speed.clamp(1, 9);
 
     let keyboard = if dark {
-        vec![off(ene::KEYBOARD, ene::KEYBOARD_ZONES)]
+        off(ene::KEYBOARD, ene::KEYBOARD_ZONES)
     } else {
         match m.effect {
             Effect::Static | Effect::Temperature => {
@@ -59,7 +59,7 @@ pub fn reports(l: &Lighting, m: &Moment) -> [Vec<Report>; 3] {
     };
 
     let logo = if dark || !l.logo_on {
-        vec![off(ene::LID_LOGO, 1)]
+        off(ene::LID_LOGO, 1)
     } else {
         // The logo has Static, Breathing and Neon only; other keyboard effects show on it as Neon.
         let effect = match m.effect {
@@ -80,7 +80,7 @@ pub fn reports(l: &Lighting, m: &Moment) -> [Vec<Report>; 3] {
 
     let key_bri = (100.0 * m.level).round() as u8;
     let mode_key = if !l.mode_key_shows_power || key_bri == 0 {
-        vec![off(ene::MODE_KEY, 1)]
+        off(ene::MODE_KEY, 1)
     } else {
         vec![solid(ene::MODE_KEY, power_color(m.power), key_bri, 1)]
     };
@@ -88,10 +88,14 @@ pub fn reports(l: &Lighting, m: &Moment) -> [Vec<Report>; 3] {
     [keyboard, logo, mode_key]
 }
 
-/// Dark: black at brightness 1. A report with brightness 0 alone left the colour lit on this controller
-/// (kbrgb found the same and turns zones off the same way).
-fn off(device: u8, zones: u16) -> Report {
-    solid(device, [0; 3], 1, zones)
+/// Dark: black at brightness 1, then black at brightness 0. The keyboard went dark only with black (kbrgb
+/// turns zones off the same way); the mode key stayed lit after black at 1. Whichever form a part honours,
+/// one of the two turns it off.
+fn off(device: u8, zones: u16) -> Vec<Report> {
+    vec![
+        solid(device, [0; 3], 1, zones),
+        solid(device, [0; 3], 0, zones),
+    ]
 }
 
 fn solid(device: u8, rgb: Rgb, brightness: u8, zones: u16) -> Report {

@@ -113,6 +113,33 @@ pub fn hide_overlay() {
     }
 }
 
+/// Hides or shows the taskbar on every monitor. It sits above other topmost windows, so the overlay
+/// cannot cover it. While hidden a marker file stays on disk, so a crash leaves nothing hidden for long:
+/// the next start shows it again.
+pub fn taskbars(visible: bool) {
+    use windows::Win32::UI::WindowsAndMessaging::{FindWindowExW, SW_HIDE, SW_SHOWNA};
+    let marker = data_dir().join("taskbar_hidden");
+    unsafe {
+        for class in [w!("Shell_TrayWnd"), w!("Shell_SecondaryTrayWnd")] {
+            let mut after = None;
+            while let Ok(h) = FindWindowExW(None, after, class, None) {
+                let _ = ShowWindow(h, if visible { SW_SHOWNA } else { SW_HIDE });
+                after = Some(h);
+            }
+        }
+    }
+    if visible {
+        let _ = std::fs::remove_file(marker);
+    } else {
+        let _ = std::fs::write(marker, "");
+    }
+}
+
+/// True when a previous run hid the taskbar and did not show it again.
+pub fn taskbar_left_hidden() -> bool {
+    data_dir().join("taskbar_hidden").exists()
+}
+
 /// The brightness to come back to, kept on disk while dark so a crash or kill is undone on next start.
 pub fn save_brightness(v: u8) {
     let _ = std::fs::write(data_dir().join("brightness_before_dark.txt"), v.to_string());
