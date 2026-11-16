@@ -388,3 +388,46 @@ pub fn restart_windows() {
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
 }
+
+/// Tick count of the last keyboard or mouse input in the session.
+pub fn last_input_tick() -> u32 {
+    let mut info = LASTINPUTINFO {
+        cbSize: size_of::<LASTINPUTINFO>() as u32,
+        dwTime: 0,
+    };
+    unsafe {
+        let _ = GetLastInputInfo(&mut info);
+    }
+    info.dwTime
+}
+
+/// Turns the display off the way Windows' own display timeout does. Apps keep running.
+pub fn display_off() {
+    use windows::Win32::Foundation::{LPARAM, WPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        HWND_BROADCAST, PostMessageW, SC_MONITORPOWER, WM_SYSCOMMAND,
+    };
+    unsafe {
+        // Posted, not sent: a hung window must not stall the caller.
+        let _ = PostMessageW(
+            Some(HWND_BROADCAST),
+            WM_SYSCOMMAND,
+            WPARAM(SC_MONITORPOWER as usize),
+            LPARAM(2),
+        );
+    }
+}
+
+/// Keeps the machine from sleeping on idle while the screen is off on purpose. Per calling thread.
+pub fn keep_awake(on: bool) {
+    use windows::Win32::System::Power::{
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED, SetThreadExecutionState,
+    };
+    unsafe {
+        let _ = SetThreadExecutionState(if on {
+            ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+        } else {
+            ES_CONTINUOUS
+        });
+    }
+}

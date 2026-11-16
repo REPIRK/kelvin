@@ -24,6 +24,7 @@ firmware interfaces may work; reports are welcome.
 - Panel overdrive, 80% charge limit, USB charging while off, boot animation and sound.
 - Night schedule, Game Sync (settings while a game runs), refresh rate.
 - The PredatorSense key and Ctrl+Alt+P cycle power modes; Ctrl+Alt+F fans, L light, O window.
+- Screen off (Ctrl+Alt+D, tray or a button): the display goes dark, music, downloads and games keep running and the laptop does not sleep; any key wakes it.
 - Temperature in the tray icon. Starts with Windows, hidden in the tray.
 
 ## Install

@@ -45,6 +45,7 @@ fn run() {
     let lights_off = CheckMenuItem::new("Keyboard light off", true, false, None);
     let logo = CheckMenuItem::new("Lid logo light", true, false, None);
     let open = MenuItem::new("Open Kelvin", true, None);
+    let screen = MenuItem::new("Turn off the screen", true, None);
     let exit = MenuItem::new("Exit", true, None);
 
     let power_menu = Submenu::new("Power mode", true);
@@ -65,6 +66,7 @@ fn run() {
     let _ = menu.append(&power_menu);
     let _ = menu.append(&fan_menu);
     let _ = menu.append(&light_menu);
+    let _ = menu.append(&screen);
     let _ = menu.append(&PredefinedMenuItem::separator());
     let _ = menu.append(&exit);
 
@@ -116,6 +118,8 @@ fn run() {
             let id = &ev.id;
             if id == open.id() {
                 window::show();
+            } else if id == screen.id() {
+                state::send(Cmd::ScreenOff);
             } else if id == exit.id() {
                 quit();
             } else if id == lights_off.id() {
@@ -174,8 +178,8 @@ fn run() {
     }
 }
 
-/// Ctrl+Alt+ P power mode, F fans (Auto → Auto+ → Max), L lights, O window. Bound to this thread.
-const HOTKEYS: [(i32, u32); 4] = [(1, 0x50), (2, 0x46), (3, 0x4C), (4, 0x4F)];
+/// Ctrl+Alt+ P power mode, F fans (Auto → Auto+ → Max), L lights, O window, D screen off. Bound to this thread.
+const HOTKEYS: [(i32, u32); 5] = [(1, 0x50), (2, 0x46), (3, 0x4C), (4, 0x4F), (5, 0x44)];
 
 fn set_hotkeys(on: bool) {
     for (id, vk) in HOTKEYS {
@@ -206,6 +210,7 @@ fn hotkey(id: i32) {
         }),
         3 => state::update(|s| s.lighting.enabled = !s.lighting.enabled),
         4 => window::toggle(),
+        5 => state::send(Cmd::ScreenOff),
         _ => {}
     }
 }

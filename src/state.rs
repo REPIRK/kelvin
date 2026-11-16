@@ -31,6 +31,7 @@ pub struct Telemetry {
     /// Processes holding the NVIDIA GPU: (pid, exe name, full path, engine use %).
     pub rtx_apps: Vec<(u32, String, String, f64)>,
     pub turbo_off: bool,
+    pub screen_off: bool,
 }
 
 #[derive(Clone, Default)]
@@ -59,6 +60,8 @@ pub enum Cmd {
     SettingsChanged,
     /// Raw payload of an `AcerGenericEvent`.
     FirmwareEvent(Vec<u8>),
+    /// Display off (apps keep running, the machine stays awake) until the next input.
+    ScreenOff,
     /// Next power mode (mode key, hotkey).
     CyclePower,
     /// Custom duty 20% then 100%: do the fans follow duty writes?

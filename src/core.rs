@@ -71,6 +71,10 @@ struct Core {
     gpu_users: Option<crate::gpu::GpuUsers>,
     gpu_users_tried: bool,
     last_gpu_poll: Option<Instant>,
+    /// Screen-off request time; the display goes off a moment later so releasing the hotkey does not wake it.
+    screen_off: Option<Instant>,
+    /// Input tick when the display went off; any newer input means the user is back.
+    screen_off_input: Option<u32>,
 }
 
 /// Custom duty 20% then 100%, 12 s each, to see whether the fans follow duty writes at all.
@@ -133,6 +137,8 @@ impl Core {
             gpu_users: None,
             gpu_users_tried: false,
             last_gpu_poll: None,
+            screen_off: None,
+            screen_off_input: None,
         }
     }
 
@@ -216,6 +222,10 @@ impl Core {
             }
             Cmd::FirmwareEvent(bytes) => self.firmware_event(&bytes),
             Cmd::CyclePower => self.cycle_power(),
+            Cmd::ScreenOff => {
+                self.screen_off = Some(Instant::now());
+                self.screen_off_input = None;
+            }
             Cmd::SetGpuMode(m) => {
                 let ok = self.acer.set_gpu_mode(m);
                 crate::diag::log(format!(
@@ -324,7 +334,7 @@ impl Core {
             power: s.power,
             fan: s.fan,
             refresh_max: s.refresh_max,
-            lights_off: !s.lighting.enabled,
+            lights_off: !s.lighting.enabled || self.screen_off.is_some(),
             effect: s.lighting.effect,
             color: None,
         };
@@ -398,6 +408,7 @@ impl Core {
             let visible = state::shared().window_visible;
             self.poll_gpu_users(visible);
         }
+        self.screen_off_step();
         self.apply_lighting();
 
         if self.save_due.is_some_and(|t| now >= t) {
@@ -648,6 +659,28 @@ impl Core {
                 ));
             }
             self.applied.turbo = Some(turbo);
+        }
+    }
+
+    /// Turns the display off 0.7 s after the request, keeps the machine awake while it is off, and ends
+    /// when the user touches the keyboard or mouse (Windows turns the display back on by itself then).
+    fn screen_off_step(&mut self) {
+        let Some(since) = self.screen_off else { return };
+        match self.screen_off_input {
+            None if since.elapsed() >= Duration::from_millis(700) => {
+                sys::display_off();
+                sys::keep_awake(true);
+                self.screen_off_input = Some(sys::last_input_tick());
+                state::shared().tele.screen_off = true;
+                crate::diag::log("Screen off");
+            }
+            Some(at) if sys::last_input_tick() != at => {
+                sys::keep_awake(false);
+                self.screen_off = None;
+                self.screen_off_input = None;
+                state::shared().tele.screen_off = false;
+            }
+            _ => {}
         }
     }
 

@@ -580,6 +580,18 @@ impl App {
         } else {
             note(ui, "Lighting controller not found on this machine.");
         }
+
+        rule(ui);
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            if ui.button("Turn off the screen").clicked() {
+                state::send(Cmd::ScreenOff);
+            }
+            note(
+                ui,
+                "Music, downloads and games keep running. Any key wakes it.",
+            );
+        });
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -880,7 +892,10 @@ impl App {
         }
         switch(ui, &mut s.hotkeys, "Shortcuts");
         if s.hotkeys {
-            note(ui, "Ctrl+Alt+P power · F fans · L light · O this window");
+            note(
+                ui,
+                "Ctrl+Alt+P power · F fans · L light · O this window · D screen off",
+            );
         }
         switch(
             ui,
