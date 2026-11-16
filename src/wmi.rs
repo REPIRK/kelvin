@@ -227,6 +227,27 @@ impl Wmi {
         }
     }
 
+    /// A numeric property of the class's (first) instance.
+    pub fn get_u64(&mut self, class: &str, prop: &str) -> Result<u64> {
+        unsafe {
+            let en = self
+                .svc
+                .ExecQuery(
+                    &BSTR::from("WQL"),
+                    &BSTR::from(format!("SELECT {prop} FROM {class}")),
+                    WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                    None,
+                )
+                .map_err(|e| err("ExecQuery", e))?;
+            let obj = next_object(&en, 5000).ok_or_else(|| format!("no instance of {class}"))?;
+            match get_prop(&obj, prop) {
+                Some(RawVal::Int(v)) => Ok(v),
+                Some(RawVal::Str(s)) => s.trim().parse().map_err(|_| format!("{prop}: {s}")),
+                _ => Err(format!("{class}.{prop} unreadable")),
+            }
+        }
+    }
+
     /// Starts an event query; the returned enumerator is read with [`next_event`].
     pub fn subscribe(&self, query: &str) -> Result<IEnumWbemClassObject> {
         unsafe {

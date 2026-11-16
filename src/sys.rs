@@ -401,31 +401,15 @@ pub fn last_input_tick() -> u32 {
     info.dwTime
 }
 
-/// Turns the display off the way Windows' own display timeout does. Apps keep running.
-pub fn display_off() {
-    use windows::Win32::Foundation::{LPARAM, WPARAM};
-    use windows::Win32::UI::WindowsAndMessaging::{
-        HWND_BROADCAST, PostMessageW, SC_MONITORPOWER, WM_SYSCOMMAND,
-    };
-    unsafe {
-        // Posted, not sent: a hung window must not stall the caller.
-        let _ = PostMessageW(
-            Some(HWND_BROADCAST),
-            WM_SYSCOMMAND,
-            WPARAM(SC_MONITORPOWER as usize),
-            LPARAM(2),
-        );
-    }
-}
-
-/// Keeps the machine from sleeping on idle while the screen is off on purpose. Per calling thread.
+/// Keeps the display and the machine on while the screen is dark on purpose: the display timeout would
+/// otherwise turn the display off, which on Modern Standby means sleep. Per calling thread.
 pub fn keep_awake(on: bool) {
     use windows::Win32::System::Power::{
-        ES_CONTINUOUS, ES_SYSTEM_REQUIRED, SetThreadExecutionState,
+        ES_CONTINUOUS, ES_DISPLAY_REQUIRED, ES_SYSTEM_REQUIRED, SetThreadExecutionState,
     };
     unsafe {
         let _ = SetThreadExecutionState(if on {
-            ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+            ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
         } else {
             ES_CONTINUOUS
         });

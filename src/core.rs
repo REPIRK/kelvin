@@ -145,6 +145,10 @@ impl Core {
     /// Reads what the machine has and what the firmware currently holds.
     fn probe(&mut self) {
         let acer = self.acer.available();
+        // A dark screen left behind by a crash or kill: bring the brightness back.
+        if let Some(b) = crate::dark::take_saved_brightness() {
+            self.acer.set_brightness(b);
+        }
         let boot = if acer {
             self.acer.get_boot_effect()
         } else {
@@ -223,8 +227,11 @@ impl Core {
             Cmd::FirmwareEvent(bytes) => self.firmware_event(&bytes),
             Cmd::CyclePower => self.cycle_power(),
             Cmd::ScreenOff => {
-                self.screen_off = Some(Instant::now());
-                self.screen_off_input = None;
+                // Already dark: a second request must not save brightness 0 as the one to restore.
+                if self.screen_off.is_none() {
+                    self.screen_off = Some(Instant::now());
+                    self.screen_off_input = None;
+                }
             }
             Cmd::SetGpuMode(m) => {
                 let ok = self.acer.set_gpu_mode(m);
@@ -287,6 +294,9 @@ impl Core {
         let eff = self.effective();
         if matches!(eff.fan, FanKind::AutoPlus | FanKind::Curve) || self.fans.guard {
             self.acer.set_fan_behavior(FanHw::Auto);
+        }
+        if self.screen_off.is_some() {
+            self.end_dark();
         }
         // Turbo back to the scheme's own value: Windows keeps the power scheme after this app is gone.
         crate::turbo::set_allowed(true);
@@ -662,26 +672,39 @@ impl Core {
         }
     }
 
-    /// Turns the display off 0.7 s after the request, keeps the machine awake while it is off, and ends
-    /// when the user touches the keyboard or mouse (Windows turns the display back on by itself then).
+    /// Darkens the screen 0.7 s after the request (so releasing the hotkey does not end it): brightness 0
+    /// under a black overlay, display and machine kept on. Not a display power-off: see dark.rs.
+    /// Ends at the next keyboard or mouse input.
     fn screen_off_step(&mut self) {
         let Some(since) = self.screen_off else { return };
         match self.screen_off_input {
             None if since.elapsed() >= Duration::from_millis(700) => {
-                sys::display_off();
+                // Brightness is touched only when it reads as a real value: a panel that reports 0 would
+                // otherwise be "restored" to black. Without it the overlay alone darkens the screen.
+                if let Some(b) = self.acer.get_brightness().filter(|&b| b > 0) {
+                    crate::dark::save_brightness(b);
+                    self.acer.set_brightness(0);
+                }
+                crate::dark::show_overlay();
                 sys::keep_awake(true);
                 self.screen_off_input = Some(sys::last_input_tick());
                 state::shared().tele.screen_off = true;
-                crate::diag::log("Screen off");
+                crate::diag::log("Screen dark");
             }
-            Some(at) if sys::last_input_tick() != at => {
-                sys::keep_awake(false);
-                self.screen_off = None;
-                self.screen_off_input = None;
-                state::shared().tele.screen_off = false;
-            }
+            Some(at) if sys::last_input_tick() != at => self.end_dark(),
             _ => {}
         }
+    }
+
+    fn end_dark(&mut self) {
+        crate::dark::hide_overlay();
+        if let Some(b) = crate::dark::take_saved_brightness() {
+            self.acer.set_brightness(b);
+        }
+        sys::keep_awake(false);
+        self.screen_off = None;
+        self.screen_off_input = None;
+        state::shared().tele.screen_off = false;
     }
 
     fn turbo_allowed(&self, power: u8) -> bool {

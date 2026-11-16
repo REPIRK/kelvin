@@ -2,6 +2,7 @@
 
 mod acer;
 mod core;
+mod dark;
 mod diag;
 mod ene;
 mod events;

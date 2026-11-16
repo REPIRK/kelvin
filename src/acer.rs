@@ -220,6 +220,28 @@ impl Acer {
             .is_some()
     }
 
+    /// Panel brightness 0-100, through Windows' own WMI brightness classes (same namespace).
+    pub fn get_brightness(&mut self) -> Option<u8> {
+        self.wmi
+            .as_mut()?
+            .get_u64("WmiMonitorBrightness", "CurrentBrightness")
+            .ok()
+            .map(|v| v.min(100) as u8)
+    }
+
+    pub fn set_brightness(&mut self, v: u8) -> bool {
+        self.call(
+            "WmiMonitorBrightnessMethods",
+            "WmiSetBrightness",
+            &[
+                ("Timeout", Arg::U32(0)),
+                ("Brightness", Arg::U8(v.min(100))),
+            ],
+            &[],
+        )
+        .is_some()
+    }
+
     /// Boot animation and sound (misc setting 6). None when the firmware does not answer.
     pub fn get_boot_effect(&mut self) -> Option<bool> {
         self.gaming_get("GetGamingMiscSetting", 0x06)
