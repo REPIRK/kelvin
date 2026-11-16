@@ -55,6 +55,10 @@ fn demo_state() {
     t.on_ac = true;
     t.power = acer::power::BALANCED;
     t.fan_text = "Auto +20%".into();
+    t.rtx_apps = vec![
+        (4120, "chrome.exe".into(), String::new(), 3.0),
+        (6388, "Discord.exe".into(), String::new(), 0.0),
+    ];
     let c = &mut sh.caps;
     c.acer = true;
     c.hid_lighting = true;
@@ -140,7 +144,7 @@ fn main() {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Kelvin shots")
-            .with_inner_size([440.0, 900.0])
+            .with_inner_size([440.0, 760.0])
             .with_position([-6000.0, 50.0])
             .with_taskbar(false),
         persist_window: false,
